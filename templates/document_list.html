@@ -1,0 +1,33 @@
+{{define "content"}}
+<h1>Documents for {{.Content.DoctypeName}}</h1>
+<a href="/doctype/{{.Content.DoctypeName}}/document/new">Create New Document</a>
+
+{{if .Content.Documents}}
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                {{range $key, $value := (index .Content.Documents 0).Data}}
+                    <th>{{$key}}</th>
+                {{end}}
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $doc := .Content.Documents}}
+            <tr>
+                <td>{{$doc.ID}}</td>
+                {{range $key, $value := $doc.Data}}
+                    <td>{{$value}}</td>
+                {{end}}
+                <td>
+                    <a href="/doctype/{{$.Content.DoctypeName}}/document/{{$doc.ID}}">Edit</a>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+{{else}}
+    <p>No documents found for this doctype.</p>
+{{end}}
+{{end}}

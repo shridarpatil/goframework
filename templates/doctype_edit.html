@@ -1,0 +1,141 @@
+{{define "content"}}
+<h1>Edit Doctype: {{.Content.Doctype.Name}}</h1>
+<form action="/doctype/{{.Content.Doctype.Name}}/edit" method="POST">
+    <div class="form-group">
+        <label for="name">Doctype Name:</label>
+        <input type="text" id="name" name="name" value="{{.Content.Doctype.Name}}" required>
+    </div>
+
+    <h2>Fields</h2>
+    <table id="fields-table">
+        <thead>
+            <tr>
+                <th>Field Name</th>
+                <th>Field Type</th>
+                <th>Field Label</th>
+                <th>Required</th>
+                <th>Permissions</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="fields-body">
+            {{range .Content.Doctype.Fields}}
+            <tr class="field-row">
+                <td><input type="text" name="field_name" value="{{.Name}}" required></td>
+                <td>
+                    <select name="field_type" required>
+                        <option value="string" {{if eq .Type "string"}}selected{{end}}>String</option>
+                        <option value="text" {{if eq .Type "text"}}selected{{end}}>Text</option>
+                        <option value="integer" {{if eq .Type "integer"}}selected{{end}}>Integer</option>
+                        <option value="float" {{if eq .Type "float"}}selected{{end}}>Float</option>
+                        <option value="boolean" {{if eq .Type "boolean"}}selected{{end}}>Boolean</option>
+                        <option value="date" {{if eq .Type "date"}}selected{{end}}>Date</option>
+                        <option value="datetime" {{if eq .Type "datetime"}}selected{{end}}>DateTime</option>
+                        <option value="select" {{if eq .Type "select"}}selected{{end}}>Select</option>
+                    </select>
+                </td>
+                <td><input type="text" name="field_label" value="{{.Label}}" required></td>
+                <td><input type="checkbox" name="field_required" {{if .Required}}checked{{end}}></td>
+                <td><input type="text" name="field_permissions" value="{{range .Permissions}}{{.}} {{end}}" placeholder="space-separated"></td>
+                <td><button type="button" class="remove-field">Remove</button></td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    <button type="button" id="add-field">Add Field</button>
+
+    <h2>Doctype Permissions</h2>
+    <div id="permissions">
+        {{range .Content.Doctype.Permissions}}
+        <div class="permission">
+            <input type="text" name="permissions" value="{{.}}" placeholder="Permission">
+            <button type="button" class="remove-permission">Remove</button>
+        </div>
+        {{end}}
+    </div>
+    <button type="button" id="add-permission">Add Permission</button>
+
+    <input type="submit" value="Save Changes">
+</form>
+
+<script>
+document.getElementById('add-field').addEventListener('click', function() {
+    var fieldsBody = document.getElementById('fields-body');
+    var newRow = document.createElement('tr');
+    newRow.className = 'field-row';
+    newRow.innerHTML = `
+        <td><input type="text" name="field_name" required></td>
+        <td>
+            <select name="field_type" required>
+                <option value="string">String</option>
+                <option value="text">Text</option>
+                <option value="integer">Integer</option>
+                <option value="float">Float</option>
+                <option value="boolean">Boolean</option>
+                <option value="date">Date</option>
+                <option value="datetime">DateTime</option>
+                <option value="select">Select</option>
+            </select>
+        </td>
+        <td><input type="text" name="field_label" required></td>
+        <td><input type="checkbox" name="field_required"></td>
+        <td><input type="text" name="field_permissions" placeholder="space-separated"></td>
+        <td><button type="button" class="remove-field">Remove</button></td>
+    `;
+    fieldsBody.appendChild(newRow);
+});
+
+document.getElementById('fields-table').addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-field')) {
+        e.target.closest('tr').remove();
+    }
+});
+
+document.getElementById('add-permission').addEventListener('click', function() {
+    var permissionsDiv = document.getElementById('permissions');
+    var newPermission = document.createElement('div');
+    newPermission.className = 'permission';
+    newPermission.innerHTML = `
+        <input type="text" name="permissions" placeholder="Permission">
+        <button type="button" class="remove-permission">Remove</button>
+    `;
+    permissionsDiv.appendChild(newPermission);
+});
+
+document.getElementById('permissions').addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-permission')) {
+        e.target.parentElement.remove();
+    }
+});
+</script>
+
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    input[type="text"], select {
+        width: 100%;
+        padding: 5px;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    button {
+        margin: 5px;
+        padding: 5px 10px;
+    }
+    #permissions div {
+        margin-bottom: 10px;
+    }
+</style>
+{{end}}

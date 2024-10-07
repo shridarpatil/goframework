@@ -1,0 +1,12 @@
+{{define "content"}}
+<h1>Doctypes</h1>
+<a href="/doctype/new">Create New Doctype</a>
+<ul>
+    {{range .Content.Doctypes}}
+    <li>
+        <a href="/doctype/{{.Name}}">{{.Name}}</a>
+        <a href="/doctype/{{.Name}}/edit">(Edit)</a>
+    </li>
+    {{end}}
+</ul>
+{{end}}

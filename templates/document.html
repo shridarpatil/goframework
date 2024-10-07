@@ -1,0 +1,26 @@
+{{define "content"}}
+<h1>Documents for {{.DoctypeName}}</h1>
+<a href="/doctype/{{.DoctypeName}}/document/new">Create New Document</a>
+<table>
+    <thead>
+        <tr>
+            {{range $key, $value := (index .Documents 0).Data}}
+            <th>{{$key}}</th>
+            {{end}}
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range $index, $doc := .Documents}}
+        <tr>
+            {{range $key, $value := $doc.Data}}
+            <td>{{$value}}</td>
+            {{end}}
+            <td>
+                <a href="/doctype/{{$.DoctypeName}}/document/{{$index}}">Edit</a>
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

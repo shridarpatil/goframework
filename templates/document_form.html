@@ -1,0 +1,19 @@
+{{define "content"}}
+{{$data := .Content}}
+<h1>{{if $data.IsNew}}New{{else}}Edit{{end}} {{$data.Doctype.Name}} Document</h1>
+<form action="" method="POST">
+    {{range $data.Doctype.Fields}}
+    <div class="form-group">
+        <label for="{{.Name}}">{{.Label}}{{if .Required}} *{{end}}</label>
+        {{if eq .Type "text"}}
+            <textarea id="{{.Name}}" name="{{.Name}}" {{if .Required}}required{{end}}>{{index $data.Document.Data .Name}}</textarea>
+        {{else}}
+            <input type="{{.Type}}" id="{{.Name}}" name="{{.Name}}" 
+                   value="{{index $data.Document.Data .Name}}"
+                   {{if .Required}}required{{end}}>
+        {{end}}
+    </div>
+    {{end}}
+    <input type="submit" value="Save">
+</form>
+{{end}}

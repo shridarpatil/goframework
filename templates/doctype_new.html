@@ -1,0 +1,135 @@
+{{define "content"}}
+<h1>Create New Doctype</h1>
+<form action="/doctype/new" method="POST">
+    <div class="form-group">
+        <label for="name">Doctype Name:</label>
+        <input type="text" id="name" name="name" required>
+    </div>
+
+    <h2>Fields</h2>
+    <table id="fields-table">
+        <thead>
+            <tr>
+                <th>Field Name</th>
+                <th>Field Type</th>
+                <th>Field Label</th>
+                <th>Required</th>
+                <th>Permissions</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="fields-body">
+            <tr class="field-row">
+                <td><input type="text" name="field_name" required></td>
+                <td>
+                    <select name="field_type" required>
+                        <option value="">Select Type</option>
+                        <option value="string">String</option>
+                        <option value="text">Text</option>
+                        <option value="integer">Integer</option>
+                        <option value="float">Float</option>
+                        <option value="boolean">Boolean</option>
+                        <option value="date">Date</option>
+                        <option value="datetime">DateTime</option>
+                        <option value="select">Select</option>
+                    </select>
+                </td>
+                <td><input type="text" name="field_label" required></td>
+                <td><input type="checkbox" name="field_required"></td>
+                <td><input type="text" name="field_permissions" placeholder="space-separated"></td>
+                <td><button type="button" class="remove-field">Remove</button></td>
+            </tr>
+        </tbody>
+    </table>
+    <button type="button" id="add-field">Add Field</button>
+
+    <h2>Doctype Permissions</h2>
+    <div id="permissions">
+        <input type="text" name="permissions" placeholder="Permission">
+    </div>
+    <button type="button" id="add-permission">Add Permission</button>
+
+    <input type="submit" value="Create Doctype">
+</form>
+
+<script>
+document.getElementById('add-field').addEventListener('click', function() {
+    var fieldsBody = document.getElementById('fields-body');
+    var newRow = document.createElement('tr');
+    newRow.className = 'field-row';
+    newRow.innerHTML = `
+        <td><input type="text" name="field_name" required></td>
+        <td>
+            <select name="field_type" required>
+                <option value="">Select Type</option>
+                <option value="string">String</option>
+                <option value="text">Text</option>
+                <option value="integer">Integer</option>
+                <option value="float">Float</option>
+                <option value="boolean">Boolean</option>
+                <option value="date">Date</option>
+                <option value="datetime">DateTime</option>
+                <option value="select">Select</option>
+            </select>
+        </td>
+        <td><input type="text" name="field_label" required></td>
+        <td><input type="checkbox" name="field_required"></td>
+        <td><input type="text" name="field_permissions" placeholder="space-separated"></td>
+        <td><button type="button" class="remove-field">Remove</button></td>
+    `;
+    fieldsBody.appendChild(newRow);
+});
+
+document.getElementById('fields-table').addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-field')) {
+        e.target.closest('tr').remove();
+    }
+});
+
+document.getElementById('add-permission').addEventListener('click', function() {
+    var permissionsDiv = document.getElementById('permissions');
+    var newPermission = document.createElement('div');
+    newPermission.innerHTML = `
+        <input type="text" name="permissions" placeholder="Permission">
+        <button type="button" class="remove-permission">Remove</button>
+    `;
+    permissionsDiv.appendChild(newPermission);
+});
+
+document.getElementById('permissions').addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-permission')) {
+        e.target.parentElement.remove();
+    }
+});
+</script>
+
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    input[type="text"], select {
+        width: 100%;
+        padding: 5px;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    button {
+        margin: 5px;
+        padding: 5px 10px;
+    }
+    #permissions div {
+        margin-bottom: 10px;
+    }
+</style>
+{{end}}
