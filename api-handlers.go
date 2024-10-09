@@ -22,7 +22,7 @@ func apiCreateDocument(w http.ResponseWriter, r *http.Request) {
     }
 
     w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(doc)
+    RespondJSON(w, http.StatusOK, doc)
 }
 
 func apiGetDocument(w http.ResponseWriter, r *http.Request) {
@@ -35,8 +35,9 @@ func apiGetDocument(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Document not found", http.StatusNotFound)
         return
     }
+    RespondJSON(w, http.StatusOK, doc)
 
-    json.NewEncoder(w).Encode(doc)
+    // json.NewEncoder(w).Encode(doc)
 }
 
 func apiUpdateDocument(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +67,7 @@ func apiUpdateDocument(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    json.NewEncoder(w).Encode(updatedDoc)
+    RespondJSON(w, http.StatusOK, updatedDoc)
 }
 
 func apiDeleteDocument(w http.ResponseWriter, r *http.Request) {
@@ -92,6 +93,5 @@ func apiListDocuments(w http.ResponseWriter, r *http.Request) {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
     }
-
-    json.NewEncoder(w).Encode(docs)
+    RespondJSON(w, http.StatusOK, docs)
 }

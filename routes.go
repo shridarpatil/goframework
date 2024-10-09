@@ -5,14 +5,18 @@ import (
 )
 
 func registerRoutes(r *mux.Router) {
-	r.HandleFunc("/", homeHandler).Methods("GET")
-	r.HandleFunc("/doctypes", doctypeListHandler).Methods("GET")
-	r.HandleFunc("/doctype/new", doctypeNewHandler).Methods("GET", "POST")
-	r.HandleFunc("/doctype/{name}", doctypeHandler).Methods("GET")
-	r.HandleFunc("/doctype/{name}/edit", doctypeEditHandler).Methods("GET", "POST")
-	r.HandleFunc("/doctype/{name}/documents", documentListHandler).Methods("GET")
-	r.HandleFunc("/doctype/{name}/document/new", documentNewHandler).Methods("GET", "POST")
-	r.HandleFunc("/doctype/{name}/document/{id}", documentEditHandler).Methods("GET", "POST")
+
+	r.HandleFunc("/login", loginHandler).Methods("GET", "POST")
+	r.HandleFunc("/logout", logoutHandler).Methods("GET")
+
+	r.HandleFunc("/", authMiddleware(homeHandler)).Methods("GET")
+	r.HandleFunc("/doctypes", authMiddleware(doctypeListHandler)).Methods("GET")
+	r.HandleFunc("/doctype/new", authMiddleware(doctypeNewHandler)).Methods("GET", "POST")
+	r.HandleFunc("/doctype/{name}", authMiddleware(doctypeHandler)).Methods("GET")
+	r.HandleFunc("/doctype/{name}/edit", authMiddleware(doctypeEditHandler)).Methods("GET", "POST")
+	r.HandleFunc("/doctype/{name}/documents", authMiddleware(documentListHandler)).Methods("GET")
+	r.HandleFunc("/doctype/{name}/document/new", authMiddleware(documentNewHandler)).Methods("GET", "POST")
+	r.HandleFunc("/doctype/{name}/document/{id}", authMiddleware(documentEditHandler)).Methods("GET", "POST")
 
 	// API routes
 	api := r.PathPrefix("/api").Subrouter()

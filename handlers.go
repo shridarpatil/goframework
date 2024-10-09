@@ -1,17 +1,31 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 	"html/template"
+	"log"
 	"net/http"
 	"path/filepath"
-	// "strconv"
+	"strconv"
 	"strings"
-
-	"github.com/gorilla/mux"
 )
 
 var templates map[string]*template.Template
+
+var templateFuncs = template.FuncMap{
+	"contains": func(slice []string, item string) bool {
+		for _, s := range slice {
+			if s == item {
+				return true
+			}
+		}
+		return false
+	},
+}
 
 func init() {
 	templates = make(map[string]*template.Template)
@@ -21,7 +35,8 @@ func init() {
 		panic(err)
 	}
 	for _, layout := range layouts {
-		templates[filepath.Base(layout)] = template.Must(template.ParseFiles(layout, templatesDir+"base.html"))
+		files := []string{layout, templatesDir + "base.html"}
+		templates[filepath.Base(layout)] = template.Must(template.New(filepath.Base(layout)).Funcs(templateFuncs).ParseFiles(files...))
 	}
 }
 
@@ -29,6 +44,7 @@ func init() {
 type PageData struct {
 	Title   string
 	Content interface{}
+	User    *Document
 }
 
 type DocumentFormData struct {
@@ -37,12 +53,60 @@ type DocumentFormData struct {
 	IsNew    bool
 }
 
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "session-name")
+
+	if r.Method == http.MethodPost {
+		username := r.FormValue("username")
+		password := r.FormValue("password")
+
+		user, err := getUserByUsername(username)
+		if err != nil {
+			renderTemplate(w, r, "login.html", map[string]interface{}{"Error": "Invalid username or password"})
+			return
+		}
+
+		storedPassword, ok := user.Data["password"].(string)
+		if !ok {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password))
+		if err != nil {
+			renderTemplate(w, r, "login.html", map[string]interface{}{"Error": "Invalid username or password"})
+			return
+		}
+
+		// Set user as authenticated
+		session.Values["authenticated"] = true
+		session.Values["user_id"] = user.ID
+		session.Save(r, w)
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	renderTemplate(w, r, "login.html", nil)
+}
+
+func logoutHandler(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "session-name")
+
+	// Revoke users authentication
+	session.Values["authenticated"] = false
+	session.Values["user_id"] = nil
+	session.Save(r, w)
+
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	data := PageData{
 		Title:   "Home",
-		Content: "Welcome to Frappe Framework",
+		Content: "Welcome to the Frappe Framework",
 	}
-	renderTemplate(w, "home.html", data)
+	renderTemplate(w, r, "home.html", data)
 }
 
 func doctypeListHandler(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +124,7 @@ func doctypeListHandler(w http.ResponseWriter, r *http.Request) {
 			Doctypes: doctypes,
 		},
 	}
-	renderTemplate(w, "doctype_list.html", data)
+	renderTemplate(w, r, "doctype_list.html", data)
 }
 
 func doctypeNewHandler(w http.ResponseWriter, r *http.Request) {
@@ -102,10 +166,11 @@ func doctypeNewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := PageData{
-		Title:   "Create New Doctype",
+		Title:   "New Doctype",
 		Content: nil,
 	}
-	renderTemplate(w, "doctype_new.html", data)
+	renderTemplate(w, r, "doctype_new.html", data)
+
 }
 
 func doctypeHandler(w http.ResponseWriter, r *http.Request) {
@@ -126,8 +191,7 @@ func doctypeHandler(w http.ResponseWriter, r *http.Request) {
 			Doctype: doctype,
 		},
 	}
-
-	renderTemplate(w, "doctype.html", data)
+	renderTemplate(w, r, "doctype.html", data)
 }
 
 func doctypeEditHandler(w http.ResponseWriter, r *http.Request) {
@@ -140,6 +204,12 @@ func doctypeEditHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	roles, err := getRoles()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	if r.Method == http.MethodPost {
 		err := r.ParseForm()
 		if err != nil {
@@ -147,23 +217,48 @@ func doctypeEditHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Update doctype name
-		doctype.Name = r.FormValue("name")
+		log.Printf("Received form data: %+v", r.Form)
 
-		// Update fields
+		doctype.Name = r.FormValue("name")
 		doctype.Fields = []Field{}
+		doctype.Permissions = r.Form["permissions"]
+
+		fieldIDs := r.Form["field_id"]
 		fieldNames := r.Form["field_name"]
 		fieldTypes := r.Form["field_type"]
 		fieldLabels := r.Form["field_label"]
 		fieldRequired := r.Form["field_required"]
 		fieldPermissions := r.Form["field_permissions"]
 
-		for i := range fieldNames {
+		// Find the minimum length of all field-related slices
+		minLen := len(fieldNames)
+		if len(fieldTypes) < minLen {
+			minLen = len(fieldTypes)
+		}
+		if len(fieldLabels) < minLen {
+			minLen = len(fieldLabels)
+		}
+		if len(fieldIDs) < minLen {
+			minLen = len(fieldIDs)
+		}
+
+		for i := 0; i < minLen; i++ {
+			id, _ := strconv.ParseInt(fieldIDs[i], 10, 64)
+			required := false
+			for _, req := range fieldRequired {
+				if req == fieldNames[i] {
+					required = true
+					break
+				}
+			}
 			field := Field{
-				Name:     fieldNames[i],
-				Type:     fieldTypes[i],
-				Label:    fieldLabels[i],
-				Required: contains(fieldRequired, fieldNames[i]),
+				ID:          id,
+				DoctypeID:   doctype.ID,
+				Name:        fieldNames[i],
+				Type:        fieldTypes[i],
+				Label:       fieldLabels[i],
+				Required:    required,
+				Permissions: []string{},
 			}
 			if i < len(fieldPermissions) {
 				field.Permissions = strings.Fields(fieldPermissions[i])
@@ -171,15 +266,17 @@ func doctypeEditHandler(w http.ResponseWriter, r *http.Request) {
 			doctype.Fields = append(doctype.Fields, field)
 		}
 
-		// Update permissions
-		doctype.Permissions = r.Form["permissions"]
+		doctypeJSON, _ := json.MarshalIndent(doctype, "", "  ")
+		log.Printf("Doctype to be updated: %s", string(doctypeJSON))
 
-		// Update the doctype in the database
 		err = updateDoctype(&doctype)
 		if err != nil {
+			log.Printf("Error updating doctype: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		log.Println("Doctype updated successfully")
 
 		http.Redirect(w, r, "/doctypes", http.StatusSeeOther)
 		return
@@ -189,12 +286,20 @@ func doctypeEditHandler(w http.ResponseWriter, r *http.Request) {
 		Title: "Edit " + doctype.Name,
 		Content: struct {
 			Doctype Doctype
+			Roles   []string
 		}{
 			Doctype: doctype,
+			Roles:   roles,
 		},
 	}
 
-	renderTemplate(w, "doctype_edit.html", data)
+	renderTemplate(w, r, "doctype_edit.html", data)
+}
+
+func getRoles() ([]string, error) {
+	// Implement this function to fetch roles from your database
+	// For now, we'll return a static list
+	return []string{"Admin", "User", "Guest"}, nil
 }
 
 // Helper function to check if a slice contains a string
@@ -228,7 +333,7 @@ func documentListHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	renderTemplate(w, "document_list.html", data)
+	renderTemplate(w, r, "document_list.html", data)
 }
 
 func documentNewHandler(w http.ResponseWriter, r *http.Request) {
@@ -372,14 +477,43 @@ func documentEditHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
+func renderTemplate(w http.ResponseWriter, r *http.Request, tmpl string, data interface{}) {
 	t, ok := templates[tmpl]
 	if !ok {
-		http.Error(w, fmt.Sprintf("The template %s does not exist.", tmpl), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Template %s not found", tmpl), http.StatusInternalServerError)
 		return
 	}
-	err := t.ExecuteTemplate(w, "base", data)
+
+	session, _ := store.Get(r, "session-name")
+	userID, ok := session.Values["user_id"].(int)
+	var user *Document
+	if ok && userID != 0 {
+		user, _ = getUserByID(userID)
+	}
+
+	var dataMap map[string]interface{}
+
+	switch v := data.(type) {
+	case PageData:
+		dataMap = map[string]interface{}{
+			"Title":   v.Title,
+			"Content": v.Content,
+		}
+	case map[string]interface{}:
+		dataMap = v
+	default:
+		dataMap = make(map[string]interface{})
+	}
+
+	dataMap["User"] = user
+
+	buf := &bytes.Buffer{}
+	err := t.ExecuteTemplate(buf, "base", dataMap)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	buf.WriteTo(w)
 }

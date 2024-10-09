@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>Edit Doctype: {{.Content.Doctype.Name}}</h1>
 <form action="/doctype/{{.Content.Doctype.Name}}/edit" method="POST">
-    <div class="form-group">
+    <div>
         <label for="name">Doctype Name:</label>
         <input type="text" id="name" name="name" value="{{.Content.Doctype.Name}}" required>
     </div>
@@ -21,7 +21,10 @@
         <tbody id="fields-body">
             {{range .Content.Doctype.Fields}}
             <tr class="field-row">
-                <td><input type="text" name="field_name" value="{{.Name}}" required></td>
+                <td>
+                    <input type="hidden" name="field_id" value="{{.ID}}">
+                    <input type="text" name="field_name" value="{{.Name}}" required>
+                </td>
                 <td>
                     <select name="field_type" required>
                         <option value="string" {{if eq .Type "string"}}selected{{end}}>String</option>
@@ -35,8 +38,14 @@
                     </select>
                 </td>
                 <td><input type="text" name="field_label" value="{{.Label}}" required></td>
-                <td><input type="checkbox" name="field_required" {{if .Required}}checked{{end}}></td>
-                <td><input type="text" name="field_permissions" value="{{range .Permissions}}{{.}} {{end}}" placeholder="space-separated"></td>
+                <td><input type="checkbox" name="field_required" value="{{.Name}}" {{if .Required}}checked{{end}}></td>
+                <td>
+                    <select name="field_permissions" multiple>
+                        {{range $.Content.Roles}}
+                            <option value="{{.}}" {{if contains $.Content.Doctype.Permissions .}}selected{{end}}>{{.}}</option>
+                        {{end}}
+                    </select>
+                </td>
                 <td><button type="button" class="remove-field">Remove</button></td>
             </tr>
             {{end}}
@@ -45,15 +54,13 @@
     <button type="button" id="add-field">Add Field</button>
 
     <h2>Doctype Permissions</h2>
-    <div id="permissions">
-        {{range .Content.Doctype.Permissions}}
-        <div class="permission">
-            <input type="text" name="permissions" value="{{.}}" placeholder="Permission">
-            <button type="button" class="remove-permission">Remove</button>
-        </div>
-        {{end}}
+    <div>
+        <select name="permissions" multiple>
+            {{range .Content.Roles}}
+                <option value="{{.}}" {{if contains $.Content.Doctype.Permissions .}}selected{{end}}>{{.}}</option>
+            {{end}}
+        </select>
     </div>
-    <button type="button" id="add-permission">Add Permission</button>
 
     <input type="submit" value="Save Changes">
 </form>
@@ -61,10 +68,13 @@
 <script>
 document.getElementById('add-field').addEventListener('click', function() {
     var fieldsBody = document.getElementById('fields-body');
-    var newRow = document.createElement('tr');
+    var newRow = fieldsBody.insertRow();
     newRow.className = 'field-row';
     newRow.innerHTML = `
-        <td><input type="text" name="field_name" required></td>
+        <td>
+            <input type="hidden" name="field_id" value="0">
+            <input type="text" name="field_name" required>
+        </td>
         <td>
             <select name="field_type" required>
                 <option value="string">String</option>
@@ -79,63 +89,21 @@ document.getElementById('add-field').addEventListener('click', function() {
         </td>
         <td><input type="text" name="field_label" required></td>
         <td><input type="checkbox" name="field_required"></td>
-        <td><input type="text" name="field_permissions" placeholder="space-separated"></td>
+        <td>
+            <select name="field_permissions" multiple>
+                {{range $.Content.Roles}}
+                    <option value="{{.}}">{{.}}</option>
+                {{end}}
+            </select>
+        </td>
         <td><button type="button" class="remove-field">Remove</button></td>
     `;
-    fieldsBody.appendChild(newRow);
 });
 
-document.getElementById('fields-table').addEventListener('click', function(e) {
+document.getElementById('fields-body').addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-field')) {
         e.target.closest('tr').remove();
     }
 });
-
-document.getElementById('add-permission').addEventListener('click', function() {
-    var permissionsDiv = document.getElementById('permissions');
-    var newPermission = document.createElement('div');
-    newPermission.className = 'permission';
-    newPermission.innerHTML = `
-        <input type="text" name="permissions" placeholder="Permission">
-        <button type="button" class="remove-permission">Remove</button>
-    `;
-    permissionsDiv.appendChild(newPermission);
-});
-
-document.getElementById('permissions').addEventListener('click', function(e) {
-    if (e.target.classList.contains('remove-permission')) {
-        e.target.parentElement.remove();
-    }
-});
 </script>
-
-<style>
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 20px;
-    }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-    }
-    th {
-        background-color: #f2f2f2;
-    }
-    input[type="text"], select {
-        width: 100%;
-        padding: 5px;
-    }
-    .form-group {
-        margin-bottom: 15px;
-    }
-    button {
-        margin: 5px;
-        padding: 5px 10px;
-    }
-    #permissions div {
-        margin-bottom: 10px;
-    }
-</style>
 {{end}}

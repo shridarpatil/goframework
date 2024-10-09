@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -21,6 +20,70 @@ func initDB() error {
 	err = createTables()
 	if err != nil {
 		return err
+	}
+
+	// Create Role doctype
+	err = createRoleDoctype()
+	if err != nil {
+		return err
+	}
+
+	// Create default roles
+	defaultRoles := []Document{
+		{DoctypeName: "Role", Data: map[string]interface{}{"name": "Admin", "description": "Administrator role"}},
+		{DoctypeName: "Role", Data: map[string]interface{}{"name": "User", "description": "Regular user role"}},
+		{DoctypeName: "Role", Data: map[string]interface{}{"name": "Guest", "description": "Guest user role"}},
+	}
+
+	for _, role := range defaultRoles {
+		err = createDocument(&role)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Create User doctype
+	err = createUserDoctype()
+	if err != nil {
+		return err
+	}
+
+	// Check if users already exist
+	users, err := getDocuments("User")
+	if err != nil {
+		return err
+	}
+
+	if len(users) == 0 {
+		// Create Admin user
+		adminUser := Document{
+			DoctypeName: "User",
+			Data: map[string]interface{}{
+				"username": "admin",
+				"password": "admin123", // In a real application, this should be hashed
+				"is_admin": true,
+				"role":     "Admin",
+			},
+		}
+		err = createDocument(&adminUser)
+		if err != nil {
+			return err
+		}
+
+		// Create Guest user
+		guestUser := Document{
+			DoctypeName: "User",
+			Data: map[string]interface{}{
+				"username": "guest",
+				"password": "guest123", // In a real application, this should be hashed
+				"is_admin": false,
+				"role":     "Guest",
+			},
+		}
+		err = createDocument(&guestUser)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -76,6 +139,32 @@ func createTables() error {
 	);`
 
 	_, err = db.Exec(createDocumentTable)
+	if err != nil {
+		return err
+	}
+
+	createFieldPermissionsTable := `
+    CREATE TABLE IF NOT EXISTS field_permissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        field_id INTEGER,
+        permission TEXT NOT NULL,
+        FOREIGN KEY (field_id) REFERENCES fields(id)
+    );`
+
+	_, err = db.Exec(createFieldPermissionsTable)
+	if err != nil {
+		return err
+	}
+
+	createDoctypePermissionsTable := `
+    CREATE TABLE IF NOT EXISTS doctype_permissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        doctype_id INTEGER,
+        permission TEXT NOT NULL,
+        FOREIGN KEY (doctype_id) REFERENCES doctypes(id)
+    );`
+
+	_, err = db.Exec(createDoctypePermissionsTable)
 	if err != nil {
 		return err
 	}
